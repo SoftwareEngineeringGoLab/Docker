@@ -56,6 +56,12 @@ CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0
 ## محتوای docker-compose.yaml
 
 
+وظایف این فایل به صورت زیر است:
+
+- هماهنگ‌سازی اجرای چند سرویس مرتبط (Django و PostgreSQL) در قالب یک محیط.
+- تعریف تنظیمات مربوط به هر سرویس و ساده‌سازی فرایند اجرای پروژه تنها با یک دستور `docker compose up`.
+
+
 ```yaml
 version: '3.9'
 
@@ -106,3 +112,4 @@ volumes:
 
 ###  Volumes
 - Volume با نام `postgres_data` برای حفظ داده‌های PostgreSQL حتی پس از توقف کانتینر تعریف شده است.
+
