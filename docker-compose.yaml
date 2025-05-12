@@ -10,6 +10,19 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
 
+    web:
+      build: .
+      ports:
+        - "8000:8000"
+      depends_on:
+        - db
+      environment:
+        DB_HOST: db
+        DB_PORT: 5432
+        DB_NAME: notes
+        DB_USER: user
+        DB_PASSWORD: password
+
 
 volumes:
   postgres_data:
