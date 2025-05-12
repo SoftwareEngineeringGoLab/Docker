@@ -1,0 +1,15 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:17.0
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: notes
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+
+
+volumes:
+  postgres_data:
