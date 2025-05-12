@@ -51,3 +51,58 @@ CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0
 - ابتدا مایگریشن‌های دیتابیس را اعمال می‌کند و سپس برنامه Django را روی آدرس داده شده راه‌اندازی و اجرا می‌کند.
 
 ---
+
+
+## محتوای docker-compose.yaml
+
+
+```yaml
+version: '3.9'
+
+services:
+  db:
+    image: postgres:17.0
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: notes
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: notes
+      DB_USER: user
+      DB_PASSWORD: password
+
+volumes:
+  postgres_data:
+```
+
+---
+
+### ️ سرویس `db`
+- اجرای PostgreSQL نسخه 17 با تعریف متغیرهای محیطی:
+  - `POSTGRES_DB`: نام دیتابیس اولیه
+  - `POSTGRES_USER`: نام کاربر پایگاه‌داده
+  - `POSTGRES_PASSWORD`: رمز عبور
+- استفاده از volume برای ذخیره‌سازی پایدار داده‌ها.
+
+---
+
+###  سرویس `web`
+- ساخت ایمیج پروژه Django با استفاده از Dockerfile موجود در دایرکتوری فعلی.
+- اتصال به دیتابیس با استفاده از متغیرهای محیطی.
+- نگاشت پورت 8000 از کانتینر به پورت 8000 هاست.
+
+---
+
+###  Volumes
+- Volume با نام `postgres_data` برای حفظ داده‌های PostgreSQL حتی پس از توقف کانتینر تعریف شده است.
