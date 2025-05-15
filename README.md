@@ -1,52 +1,172 @@
-# Notes project
+# گزارش آزمایش
 
-## Requirements
-- Python3
-- Postgres
+##  محتوای فایل Dockerfile
 
-## How to run
+وظایف Dockerfile به صورت زیر است:
+- تعریف نحوه ساخت محیط اجرایی پروژه Django به صورت خودکار در قالب یک Docker image.
+- این فایل مشخص می‌کند که از چه پایه‌ای (Python 3.11) استفاده شود، چه فایل‌هایی کپی شوند، دیپندنسی‌ها چطور نصب شوند، و برنامه چگونه اجرا شود.
 
-### Setup virtual environment
 
-#### Create venv
-```
-python -m venv ./venv
-```
+```Dockerfile
+FROM python:3.11
 
-#### Install requirements
-```
-python -m pip install -r requirements.txt
-```
+WORKDIR /app
 
-#### Activate venv
-```
-source ./venv/bin/activate
+COPY . .
+
+RUN pip install -r requirements.txt
+
+CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
 ```
 
-### Setup database
-1. Create an instance of postgres database
-2. Make migrations
-    ```
-    python manage.py makemigrations
-    ```
-3. Migrate
-    ```
-    python manage.py migrate
-    ```
+---
+### `FROM python:3.11`
 
-### Create an admin
-```
-python manage.py createsuperuser
+- این خط مشخص می‌کند که محیط اجرایی کانتینر شامل Python 3.11 خواهد بود.
+
+---
+### `WORKDIR /app`
+
+- مسیر کاری داخل کانتینر را به دایرکتوری `/app` تغییر می‌دهد.
+- تمامی دستورات بعدی در این دایرکتوری اجرا خواهند شد.
+
+---
+
+### `COPY . .`
+
+- تمام فایل‌ها و دایرکتوری‌های موجود در مسیر فعلی پروژه را به مسیر کاری داخل کانتینر (یعنی `/app`) کپی می‌کند.
+
+---
+
+### `RUN pip install -r requirements.txt`
+
+- تمام کتابخانه‌ها و وابستگی‌های پروژه را که در فایل `requirements.txt` لیست شده‌اند نصب می‌کند.
+- در پروژه ما شامل Django و psycopg2-binary است.
+
+---
+
+### `CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]`
+
+- این دستور هنگام اجرای کانتینر اجرا می‌شود.
+- ابتدا مایگریشن‌های دیتابیس را اعمال می‌کند و سپس برنامه Django را روی آدرس داده شده راه‌اندازی و اجرا می‌کند.
+
+---
+
+
+## محتوای docker-compose.yaml
+
+
+وظایف این فایل به صورت زیر است:
+
+- هماهنگ‌سازی اجرای چند سرویس مرتبط (Django و PostgreSQL) در قالب یک محیط.
+- تعریف تنظیمات مربوط به هر سرویس و ساده‌سازی فرایند اجرای پروژه تنها با یک دستور `docker compose up`.
+
+
+```yaml
+version: '3.9'
+
+services:
+  db:
+    image: postgres:17.0
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: notes
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: notes
+      DB_USER: user
+      DB_PASSWORD: password
+
+volumes:
+  postgres_data:
 ```
 
-## Important end-points
-```
-users/login/ --> login a user
-users/me/ --> get information of logged-in user
-users/create/ --> create a user
-users/<id>/delete/ --> delete a user
-notes/ --> list all notes of current user
-notes/<id>/ --> get details of a note
-notes/create/ --> create a note
-notes/<id>/delete/ --> delete a note
-```
+---
+
+### ️ سرویس `db`
+- اجرای PostgreSQL نسخه 17 با تعریف متغیرهای محیطی:
+  - `POSTGRES_DB`: نام دیتابیس اولیه
+  - `POSTGRES_USER`: نام کاربر پایگاه‌داده
+  - `POSTGRES_PASSWORD`: رمز عبور
+- استفاده از volume برای ذخیره‌سازی پایدار داده‌ها.
+
+---
+
+###  سرویس `web`
+- ساخت ایمیج پروژه Django با استفاده از Dockerfile موجود در دایرکتوری فعلی.
+- اتصال به دیتابیس با استفاده از متغیرهای محیطی.
+- نگاشت پورت 8000 از کانتینر به پورت 8000 هاست.
+
+---
+
+###  Volumes
+- Volume با نام `postgres_data` برای حفظ داده‌های PostgreSQL حتی پس از توقف کانتینر تعریف شده است.
+
+
+## اجرای برنامه و تعامل با داکر
+
+با دستور `docker compose up -d` برنامه را استارت می‌کنیم.
+
+![1.png](images/1.png)
+
+مشاهده می‌شود که ایمیج ساخته می‌شود و اپلیکیشن و سرویس پایگاه‌داده آغاز به کار می‌کنند.
+ همانطور که در دستور `docker ps` کانتینر های درحال اجرا را دیدیم از هر ایمیج یک کانیتر در حال اجرا است و از برنامه وب پورت ۸۰۰۰ اکسپوز شده است.
+
+
+در تصویر زیر لیست ایمیج ها را مشاهده‌می‌کنیم که همانطور که پیداست postgres و aznarm6-web از ایمیح های مورد استفاده ما هستند. همچنین ایمیج aznarm6-web از ایمیج python ساخته شده است.
+![2.png](images/2.png)
+
+به درون کانتینر وب سرور می‌رویم و کامند های مختلفی را ران می‌کنیم که مشاهده‌ می‌شود در یک محیط ایزوله که برنامه درحال ران هست هستیم و می‌توانیم مثل هر سروری دستوراتمان را ران کنیم. فایل های پروژه نیز با دستور کپی داکرفایل همه در اینجا قرار دارند و پروژه درحال اجرا است. 
+![3.png](images/3.png)
+
+
+حال با Postman، به کار با اپلیکیشن می‌پردازیم:
+
+ابتدا یک کاربر با نام user1 و پسورد 1234 می‌سازیم. مشاهده می شود که ۲۰۰ برگردانده شد و یوزر ساخته شده است.
+![a1.png](images/a1.png)
+
+لاگین می‌کنیم در کاربر و مشاهده می‌شود ۲۰۰ برگردانده شد و کوکی ها ست شد.
+![a2.png](images/a2.png)
+![a3.png](images/a3.png)
+
+یک نوت با title1 و body1 می‌سازیم.
+![a4.png](images/a4.png)
+
+
+یک نوت با title2 و body2 می‌سازیم.
+![a5.png](images/a5.png)
+
+در آخر لیست نوت های کاربر را می‌گیریم که مشاهده می‌شود دو نوت کاربر برگردانده شده است.
+![a6.png](images/a6.png)
+
+
+## پرسش ها
+
+1. وظایف Dockerfile، image و container را توضیح دهید.
+
+- Dockerfile: 
+
+-فایلی متنی است که مجموعه‌ای از دستورها را برای ساخت یک image داکر تعریف می‌کند. این فایل مشخص می‌کند که از چه محیط پایه‌ای استفاده شود، چه فایل‌هایی کپی شوند، چه بسته‌هایی نصب شوند، و هنگام اجرای کانتینر چه فرمانی اجرا شود.
+- Docker Image:
+ 
+یک snapshot از محیط نرم‌افزاری است که شامل سیستم‌عامل پایه، برنامه و وابستگی‌های آن است. Image تغییرناپذیر است و می‌تواند بارها برای ساخت کانتینرهای مختلف استفاده شود.
+
+- Docker Container:
+ 
+یک instance فعال از یک image است. در واقع، کانتینر محیط اجرایی زنده‌ای است که بر اساس یک image اجرا شده و می‌توان در آن کد را اجرا، فایل ایجاد یا حتی ارتباط شبکه برقرار کرد.
+
+
+2. از kubernetes برای انجام چه کارهایی می‌توان استفاده کرد؟ رابطه آن با داکر چیست؟
+
+کوبرنتیز یک پلتفرم متن‌باز برای مدیریت، استقرار خودکار و مقیاس‌دهی برنامه‌های کانتینری‌شده است. این سیستم به توسعه‌دهندگان و تیم‌های DevOps این امکان را می‌دهد که چندین کانتینر را در محیط‌های توزیع‌شده به‌سادگی کنترل و پایش کنند. کوبرنتیز مسئولیت‌هایی مانند Load Balancing، خودترمیمی کانتینرها در صورت خرابی، Rolling Updates، مدیریت پیکربندی‌ها و Secrets و ارتباط شبکه‌ای بین سرویس‌ها را بر عهده دارد. رابطه آن با داکر در این است که داکر ابزاری برای ساخت و اجرای کانتینرها است، در حالی‌که کوبرنتیز یک سطح بالاتر از آن قرار دارد و برای مدیریت هماهنگ مجموعه‌ای از کانتینرها استفاده می‌شود. به بیان ساده، کوبرنتیز موتور مدیریت زیرساخت کانتینری است و داکر تنها یکی از اجزای قابل استفاده در این معماری محسوب می‌شود.
